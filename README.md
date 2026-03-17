@@ -232,18 +232,6 @@ mlflow ui --backend-store-uri sqlite:///mlflow.db
 
 ### Start FastAPI Server
 
-> **Before starting**, apply these two fixes to `src/serving/api.py`:
->
-> 1. Add global variable declarations (before `_load_last_state()`):
->    ```python
->    last_experiment_name = None
->    last_champion_version = None
->    ```
-> 2. Fix the MLflow URI (line 46) to use the local database:
->    ```python
->    mlflow.set_tracking_uri('sqlite:///mlflow.db')
->    ```
-
 ```bash
 uvicorn src.serving.api:app --reload --host 0.0.0.0 --port 8000
 ```
