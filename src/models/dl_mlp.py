@@ -1,7 +1,13 @@
 # ─────────────────────────────────────────────────────────
 # PURPOSE: PyTorch MLP with batch normalization, dropout, and early stopping.
 #
-# ARCHITECTURE: Input → [Linear → BatchNorm → ReLU → Dropout] x 4 → Output
+#  THE ARCHITECTURE (built dynamically from hidden_dims):
+#    Input (input_dim)
+#      → Linear(input_dim, 256) → BatchNorm1d(256) → ReLU → Dropout(0.3)
+#      → Linear(256, 128)       → BatchNorm1d(128) → ReLU → Dropout(0.3)
+#      → Linear(128, 64)        → BatchNorm1d(64)  → ReLU → Dropout(0.3)
+#      → Linear(64, 32)         → BatchNorm1d(32)  → ReLU → Dropout(0.3)
+#      → Linear(32, n_classes)  [final output layer — no activation]
 #
 # KEY COMPONENTS:
 #   BatchNorm: normalizes activations during training → faster convergence
@@ -75,16 +81,16 @@ class MLPClassifier(BaseEstimator, ClassifierMixin):
             epoch_loss = 0
  
             for X_batch, y_batch in loader:
-                optimizer.zero_grad()          # Clear gradients from previous step
-                outputs = self.model_(X_batch)  # Forward pass
-                loss = criterion(outputs, y_batch)  # Compute loss
-                loss.backward()                # Backpropagation — compute gradients
-                optimizer.step()               # Update weights
+                optimizer.zero_grad()         
+                outputs = self.model_(X_batch)  
+                loss = criterion(outputs, y_batch)  
+                loss.backward()                
+                optimizer.step()               
                 epoch_loss += loss.item()
  
             avg_loss = epoch_loss / len(loader)
  
-            # Early stopping: stop if loss hasn't improved for `patience` epochs
+            # Early stopping: stop if loss hasn't improved
             if avg_loss < best_loss:
                 best_loss = avg_loss
                 patience_counter = 0
@@ -95,7 +101,6 @@ class MLPClassifier(BaseEstimator, ClassifierMixin):
                 if patience_counter >= self.patience:
                     break  # Stop training — no more improvement
  
-        # Restore the best weights found during training
         self.model_.load_state_dict(self.best_state_)
         return self
  

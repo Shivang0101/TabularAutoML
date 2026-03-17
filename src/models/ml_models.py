@@ -53,8 +53,6 @@ def get_ml_models(task: str = 'classification') -> List[Tuple[str, Any]]:
             ('KNN', KNeighborsClassifier(
                 n_neighbors=7, weights='distance', n_jobs=-1
             )),
-            # ElasticNet penalty inside LogisticRegression = works for classification
-# l1_ratio=0.5 means equal L1 + L2 mix, same concept, correct model type
             ('ElasticNetClassifier', LogisticRegression(
                 C=1.0, penalty='elasticnet', solver='saga',
                 l1_ratio=0.5, max_iter=1000, random_state=42

@@ -1,5 +1,3 @@
-# ─────────────────────────────────────────────────────────
-# automl_pipeline.py — Master Pipeline Orchestrator
 # PURPOSE: Single entry point to run the entire AutoML workflow.
 #          Ties together ALL other modules in the correct sequence.
 #
@@ -13,12 +11,8 @@
 #   6. Build ensemble from top-3
 #   7. Log everything to MLflow
 #   8. Register champion model in MLflow Model Registry
-#
-# WHY INTERACTIONS ARE INSIDE THE LOOP (not in step 3):
-#   Only LogisticRegression and ElasticNet benefit from polynomial
-#   features. Applying them globally before training would bloat
-#   the feature space for all 11 other models unnecessarily.
-# ─────────────────────────────────────────────────────────
+
+
 
 import mlflow
 import mlflow.sklearn
@@ -28,7 +22,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_auc_score, f1_score, log_loss
 import logging
 
-# ── Import all custom modules ────────────────────────────────────────────────
+#Custom Functions
 from src.ingestion.loader import DataLoader
 from src.ingestion.validator import DataValidator
 from src.preprocessing.missing import MissingValueHandler
@@ -48,26 +42,17 @@ logger = logging.getLogger(__name__)
 
 
 class AutoMLPipeline:
-    """
-    The main class users interact with.
-
-    Usage:
-        pipeline = AutoMLPipeline()
-        results  = pipeline.run(df, target_col='label')
-        print(results['best_model'], results['auc'])
-    """
 
     def __init__(self, n_hpo_trials: int = 50, experiment_name: str = 'AutoML-Run'):
 
-        # All components initialized but not yet executed
         self.loader              = DataLoader()
         self.validator           = DataValidator()
         self.missing_handler     = MissingValueHandler()
         self.encoder             = AutoEncoder()
         self.scaler              = AutoScaler()
         self.outlier_handler     = OutlierHandler()
-        self.feature_selector    = FeatureSelector(method='auto')   # auto picks by dataset size
-        self.interaction_gen     = InteractionFeatureGenerator()    # only used for linear models
+        self.feature_selector    = FeatureSelector(method='auto')   
+        self.interaction_gen     = InteractionFeatureGenerator()   
         self.hpo                 = OptunaHPO(n_trials=n_hpo_trials)
         self.ensemble_builder    = EnsembleBuilder()
 
@@ -76,25 +61,20 @@ class AutoMLPipeline:
         mlflow.set_experiment(experiment_name)
 
     def run(self, df: pd.DataFrame, target_col: str) -> dict:
-        """
-        Execute the full pipeline.
-        Returns dict with: champion, auc, all_results, selected_features
-        """
+
         logger.info('=== AutoML Pipeline Starting ===')
 
-        # ── STEP 1: Validate ─────────────────────────────────────────────────
+        # ── STEP 1: Validate 
         report = self.validator.validate(df, target_col)
         if not report.is_valid:
             raise ValueError(f'Data validation failed: {report.errors}')
         for warning in report.warnings:
             logger.warning(warning)
 
-        # ── STEP 2: Preprocess ───────────────────────────────────────────────
-        # Separate features (X) and target (y) early to prevent target leakage.
-        # ORDER MATTERS:
+        # ── STEP 2: Preprocess
+        # ORDER :
         #   outlier removal → missing values → encode → scale
         #   encoding before scaling: encoder outputs numbers, scaler needs numbers
-        #   outlier removal before scaling: outliers distort the scaler's mean/std
         df_clean = self.outlier_handler.remove_outliers(df, target_col)
         X = df_clean.drop(columns=[target_col])
         y = df_clean[target_col]
@@ -103,10 +83,8 @@ class AutoMLPipeline:
         X = self.encoder.fit_transform(X, y)
         X = self.scaler.fit_transform(X)
 
-        # ── STEP 3: Feature Selection ─────────────────────────────────────────
-        # Reduces feature space before training.
-        # auto mode picks method based on dataset size:
-        #   < 10k rows  → rfecv | 10k-50k → shap | >= 50k → kbest
+        # ── STEP 3: Feature Selection 
+
         X = self.feature_selector.fit_transform(X, y)
         X.columns = [str(col).replace('[', '_')
                       .replace(']', '_')
@@ -119,19 +97,17 @@ class AutoMLPipeline:
             f'(method: {self.feature_selector.get_method_used()})'
         )
 
-        # ── STEP 4: Train/Test Split ──────────────────────────────────────────
-        # ALWAYS split BEFORE any model-based operations.
+        # ── STEP 4: Train/Test Split
         # stratify=y ensures both splits have same class distribution.
         X_train, X_test, y_train, y_test = train_test_split(
             X, y, test_size=0.2, random_state=42, stratify=y
         )
 
-        # Further split train → train + validation for ensemble building
         X_tr, X_val, y_tr, y_val = train_test_split(
             X_train, y_train, test_size=0.2, random_state=42, stratify=y_train
         )
 
-        # ── STEP 5: Train All 13 Models ───────────────────────────────────────
+        # ── STEP 5: Train All 13 Models 
         all_results = []
         all_models = get_ml_models() + [
             ('MLP',    MLPClassifier()),
@@ -143,10 +119,6 @@ class AutoMLPipeline:
             with mlflow.start_run(run_name=name):
                 logger.info(f'Training {name}...')
 
-                # ── Interaction features: only for linear models ───────────────
-                # LogisticRegression and ElasticNet cannot learn feature
-                # interactions on their own — we create them explicitly here.
-                # All other models (trees, DL) learn interactions internally.
                 if name in LINEAR_MODELS:
                     logger.info(
                         f'[{name}] Linear model — applying interaction features.'
@@ -155,12 +127,11 @@ class AutoMLPipeline:
                     X_test_final = self.interaction_gen.transform(X_test)
                     X_val_final  = self.interaction_gen.transform(X_val)
                 else:
-                    # trees and DL models use original selected features
                     X_tr_final   = X_tr
                     X_test_final = X_test
                     X_val_final  = X_val
 
-                # ── HPO: find best hyperparameters using Optuna ───────────────
+                # ── HPO: find best hyperparameters using Optuna
                 try:
                     best_params = self.hpo.optimize(name, X_tr_final, y_tr)
                     if best_params is not None:
@@ -170,10 +141,8 @@ class AutoMLPipeline:
                     # Some models don't have HPO defined — use defaults
                     logger.info(f'Using default params for {name}')
 
-                # ── Train with best params ────────────────────────────────────
                 model.fit(X_tr_final, y_tr)
 
-                # With this:
                 y_proba_all = model.predict_proba(X_test_final)
                 if y_proba_all.shape[1] == 2:
                     y_proba = y_proba_all[:, 1]
@@ -198,7 +167,7 @@ class AutoMLPipeline:
                 })
                 logger.info(f'{name}: AUC={auc:.4f}, F1={f1:.4f}')
 
-        # ── STEP 6: Build Ensemble ────────────────────────────────────────────
+        # ── STEP 6: Build Ensemble 
         # Sort by AUC, take top 3 models for stacking
         all_results.sort(key=lambda x: x['auc'], reverse=True)
         top3 = [(r['name'], r['model']) for r in all_results[:3]]
@@ -216,9 +185,7 @@ class AutoMLPipeline:
             champion_auc = roc_auc_score(y_test, champ_proba, multi_class='ovr', average='macro')
         logger.info(f'Champion ensemble AUC: {champion_auc:.4f}')
 
-        # ── STEP 7: Register in MLflow Model Registry ─────────────────────────
-
-        # ── STEP 7: Register in MLflow Model Registry ─────────────────────────
+        # ── STEP 7: Register in MLflow Model Registry 
         with mlflow.start_run(run_name='Champion-Ensemble'):
             mlflow.log_metric('auc_roc', champion_auc)
             mlflow.sklearn.log_model(champion, 'champion-model')

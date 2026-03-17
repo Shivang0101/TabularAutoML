@@ -44,13 +44,12 @@ class InteractionFeatureGenerator:
         self._poly = None
         self._new_feature_names = []
         self._numeric_cols = []
-        self.fitted_ = False  # always initialize to False
+        self.fitted_ = False  
 
     def needs_interactions(self, model_name: str) -> bool:
         return model_name in LINEAR_MODELS
 
     def fit_transform(self, X: pd.DataFrame) -> pd.DataFrame:
-        # Reset fitted state each time fit_transform is called
         self.fitted_ = False
         self._poly = None
 
@@ -64,7 +63,6 @@ class InteractionFeatureGenerator:
                 f'Would generate ~{len(numeric_cols)**2} new features. '
                 f'Returning original DataFrame.'
             )
-            # fitted_ stays False — transform() will return X as-is
             return X
 
         logger.info(

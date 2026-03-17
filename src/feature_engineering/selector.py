@@ -37,7 +37,6 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# ── Dataset size thresholds for auto mode 
 _RFECV_MAX_ROWS   = 10_000   
 _KBEST_MIN_ROWS   = 50_000   
 
@@ -48,7 +47,7 @@ class FeatureSelector:
         self.method = method      # 'auto', 'rfecv', 'kbest', 'shap'
         self.k_best = k_best      # used by kbest — how many features to keep
         self.selected_features: List[str] = []
-        self._method_used: str = ''   # track which method auto actually picked
+        self._method_used: str = ''   
 
     def fit_transform(self, X: pd.DataFrame, y: pd.Series) -> pd.DataFrame:
         MIN_COLS_FOR_SELECTION = 20  # below this, keep everything

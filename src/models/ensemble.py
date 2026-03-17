@@ -1,5 +1,3 @@
-# ─────────────────────────────────────────────────────────
-# ensemble.py — Stacking and Voting Ensemble Builder
 # PURPOSE: Combine top-3 models to build a more robust final predictor.
 #
 # TWO ENSEMBLE METHODS:
@@ -17,7 +15,7 @@
 #   1. Multiclass-safe AUC — binary vs multiclass handled separately
 #   2. Calibration data leakage fix — val set split into select + calib halves
 #   3. DL models filtered out — CNN/MLP/TabNet incompatible with sklearn ensemble
-# ─────────────────────────────────────────────────────────
+
 
 from sklearn.ensemble import StackingClassifier, VotingClassifier
 from sklearn.linear_model import LogisticRegression
@@ -53,11 +51,6 @@ class EnsembleBuilder:
             calibrated : best ensemble wrapped in Platt Scaling calibration
         """
 
-        # ── Filter out DL models ────────────────────────────────────────────
-        # DL models (MLP, TabNet, CNN) are not compatible with sklearn's
-        # VotingClassifier/StackingClassifier internal estimator validation.
-        # They still compete on the leaderboard and can win individually —
-        # just not inside the stacking/voting ensemble.
         sklearn_models = [(name, model) for name, model in top_models
                           if name not in DL_MODELS]
 
@@ -68,7 +61,7 @@ class EnsembleBuilder:
 
         logger.info(f'Ensemble using models: {[name for name, _ in sklearn_models]}')
 
-        # ── Split val set into two halves ───────────────────────────────────
+        # ── Split val set into two halves 
         # X_val_select → used to compare stacking vs voting AUC (model selection)
         # X_val_calib  → used to fit Platt calibration (avoids data leakage)
         # WHY: Using same data for both selection AND calibration = mild leakage.
@@ -76,7 +69,7 @@ class EnsembleBuilder:
             X_val, y_val, test_size=0.5, random_state=42, stratify=y_val
         )
 
-        # ── Build Stacking Ensemble ─────────────────────────────────────────
+        # ── Build Stacking Ensemble 
         # StackingClassifier trains base models, then trains meta-learner
         # on their out-of-fold predictions (cv=5 means 5-fold OOF predictions)
         # stack_method='predict_proba': pass probabilities to meta-learner
@@ -89,7 +82,7 @@ class EnsembleBuilder:
         )
         stacking.fit(X_train, y_train)
 
-        # ── Build Voting Ensemble ───────────────────────────────────────────
+        # ── Build Voting Ensemble 
         # VotingClassifier averages predicted probabilities from all base models
         # voting='soft': use probabilities not hard class labels → better calibrated
         voting = VotingClassifier(
@@ -99,7 +92,7 @@ class EnsembleBuilder:
         )
         voting.fit(X_train, y_train)
 
-        # ── Compare AUC on selection set ───────────────────────────────────
+        # ── Compare AUC on selection set 
         # Binary → use [:, 1] directly
         # Multiclass → use ovr + macro averaging
         stack_probs = stacking.predict_proba(X_val_select)
@@ -120,12 +113,12 @@ class EnsembleBuilder:
 
         logger.info(f'Stacking AUC: {stacking_auc:.4f} | Voting AUC: {voting_auc:.4f}')
 
-        # ── Select better ensemble ──────────────────────────────────────────
+        # ── Select better ensemble 
         best = stacking if stacking_auc >= voting_auc else voting
         best_name = 'Stacking' if stacking_auc >= voting_auc else 'Voting'
         logger.info(f'Selected {best_name} ensemble as champion')
 
-        # ── Platt Scaling Calibration ───────────────────────────────────────
+        # ── Platt Scaling Calibration
         # Raw model probabilities are often overconfident.
         # Platt Scaling fits a logistic curve to map raw scores →
         # calibrated probabilities.

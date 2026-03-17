@@ -1,9 +1,7 @@
-# ─────────────────────────────────────────────────────────
-# schemas.py — Pydantic Request and Response Schemas
 # PURPOSE: Define the structure of all API inputs and outputs.
 #          Pydantic validates data automatically — bad inputs return
 #          a clear 422 Unprocessable Entity error with explanation.
-# ─────────────────────────────────────────────────────────
+
  
 from pydantic import BaseModel, Field
 from typing import Dict, List, Optional, Any
@@ -17,7 +15,7 @@ class PredictRequest(BaseModel):
     # Dict[str, Any] means: dictionary with string keys and any type of value
     # This is flexible because different datasets have different feature names/types
     features: Dict[str, Any] = Field(
-        ...,  # '...' means this field is required (no default)
+        ...,  
         description='Dictionary of feature name → feature value',
         example={'age': 35, 'income': 50000, 'credit_score': 720}
     )

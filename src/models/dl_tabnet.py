@@ -1,6 +1,6 @@
-# dl_tabnet.py — TabNet Wrapper (sklearn-compatible)
+# TabNet Wrapper (sklearn-compatible)
 # TabNet: Sequential attention for feature selection in tabular DL
-# Paper: 'TabNet: Attentive Interpretable Tabular Learning' (Arik & Pfister, 2019)
+
  
 from pytorch_tabnet.tab_model import TabNetClassifier
 from sklearn.base import BaseEstimator, ClassifierMixin

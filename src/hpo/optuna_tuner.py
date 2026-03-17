@@ -1,5 +1,3 @@
-# ─────────────────────────────────────────────────────────
-# optuna_tuner.py — Hyperparameter Optimization with Optuna
 # PURPOSE: Automatically find optimal hyperparameters for each model.
 #
 # WHY OPTUNA vs GridSearchCV:
@@ -12,7 +10,7 @@
 #   Study: a collection of trials optimizing one objective
 #   TPE Sampler: Tree-structured Parzen Estimator — the Bayesian algorithm
 #   MedianPruner: kills bad trials early (before all epochs complete)
-# ─────────────────────────────────────────────────────────
+
  
 import optuna
 import mlflow
@@ -41,7 +39,7 @@ class OptunaHPO:
 
     # ── Adaptive scaling based on dataset size ──────────────────
     # Large datasets: each trial is expensive → reduce trials and folds
-    # to keep total HPO time under ~30 mins on CPU
+    # to keep total HPO time less on CPU
         n_samples = len(X_train)
         if n_samples > 50000:
             self.n_trials = 20
@@ -58,24 +56,24 @@ class OptunaHPO:
             else:
                 raise ValueError(f'No HPO objective defined for {model_name}')
     
-            # Create Optuna study
-            study = optuna.create_study(
-                direction='maximize',
-                sampler=optuna.samplers.TPESampler(seed=42),
+        # Create Optuna study
+        study = optuna.create_study(
+            direction='maximize',
+            sampler=optuna.samplers.TPESampler(seed=42),
                 pruner=optuna.pruners.MedianPruner(n_startup_trials=10)
-            )
+        )
     
-            study.optimize(
-                objective,
-                n_trials=self.n_trials,
-                timeout=self.timeout,
-                show_progress_bar=True
-            )
+        study.optimize(
+            objective,
+            n_trials=self.n_trials,
+            timeout=self.timeout,
+            show_progress_bar=True
+        )
     
-            logger.info(f'{model_name} best score: {study.best_value:.4f}')
-            logger.info(f'{model_name} best params: {study.best_params}')
+        logger.info(f'{model_name} best score: {study.best_value:.4f}')
+        logger.info(f'{model_name} best params: {study.best_params}')
     
-            return study.best_params
+        return study.best_params
  
     def _xgboost_objective(self, X_train, y_train):
         def objective(trial):

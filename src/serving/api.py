@@ -1,5 +1,3 @@
-# ─────────────────────────────────────────────────────────
-# api.py — FastAPI REST Service for Model Serving
 # PURPOSE: Expose trained models as HTTP endpoints.
 #
 # ENDPOINTS:
@@ -19,7 +17,7 @@
 #   - last_experiment_name: tracks which experiment to show in leaderboard
 #   - last_champion_version: tracks which model version to use for predict
 #   - Both update automatically after each /train call
-# ─────────────────────────────────────────────────────────
+
 
 from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks
 from fastapi.responses import JSONResponse
@@ -42,10 +40,11 @@ app = FastAPI(
     version='1.0.0'
 )
 
-# ── Must match URI used during training ──────────────────────────────────────
+# ── Must match URI used during training 
 mlflow.set_tracking_uri('sqlite:////home/shivang/projects/AutoML/mlflow.db')
 
-# Add this function after global variables in api.py
+last_experiment_name = None
+last_champion_version = None
 def _load_last_state():
     """On startup, find the most recent experiment from MLflow."""
     global last_experiment_name, last_champion_version
@@ -122,11 +121,7 @@ async def train_model(
 
 @app.post('/train/openml', response_model=TrainResponse)
 async def train_from_openml(dataset_id: int, target_col: str = 'target'):
-    """
-    Train using OpenML dataset ID instead of CSV upload.
-    Example: dataset_id=31  → Credit-g (1000 rows, credit risk)
-             dataset_id=151 → Electricity (45k rows, binary)
-    """
+
     global last_experiment_name, last_champion_version
 
     try:
@@ -164,10 +159,7 @@ async def train_from_openml(dataset_id: int, target_col: str = 'target'):
 
 @app.post('/predict', response_model=PredictResponse)
 async def predict(request: PredictRequest):
-    """
-    Predict using the champion model from the LAST training run.
-    If no training has been done via API, falls back to Production stage.
-    """
+
     try:
         # Use last trained version if available — otherwise use Production
         if last_champion_version is not None:

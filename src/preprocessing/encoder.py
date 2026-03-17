@@ -40,7 +40,7 @@ class AutoEncoder:
         self._encoders: Dict = {}
         self._strategy: Dict = {}
         self._ohe_cols_output: List = []
-        self._dropped_cols: List = []   # track which columns were dropped → for transform()
+        self._dropped_cols: List = []   
 
     def fit_transform(self, df: pd.DataFrame, target: pd.Series) -> pd.DataFrame:
         df = df.copy()
@@ -48,7 +48,7 @@ class AutoEncoder:
 
         for col in cat_cols:
             n_unique = df[col].nunique()
-            cardinality_ratio = n_unique / len(df)  # e.g. 950 unique / 1000 rows = 0.95
+            cardinality_ratio = n_unique / len(df)  
             if cardinality_ratio > self.drop_cardinality_threshold:
                 df.drop(columns=[col], inplace=True)
                 self._dropped_cols.append(col)

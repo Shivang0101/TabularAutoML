@@ -1,7 +1,5 @@
 # ─────────────────────────────────────────────────────────
 # PURPOSE: PyTorch 1D-CNN for tabular classification.
-#          Treats each feature as a "channel" and applies
-#          convolutions to learn local feature interactions.
 #
 # ARCHITECTURE:
 #   Input (batch, 1, n_features)
@@ -60,7 +58,7 @@ class CNNNet(nn.Module):
             nn.Linear(128, 64),
             nn.ReLU(),
             nn.Dropout(p=dropout_rate),
-            nn.Linear(64, output_dim)  # final logits — one per class
+            nn.Linear(64, output_dim)  
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -81,13 +79,13 @@ class CNNClassifier(BaseEstimator, ClassifierMixin):
     _estimator_type = "classifier"
     def __init__(self, num_filters=64, kernel_size=3, lr=0.001,
                  epochs=100, batch_size=256, dropout=0.3, patience=10):
-        self.num_filters = num_filters    # number of conv filters in first block
-        self.kernel_size = kernel_size    # how many adjacent features each filter sees
+        self.num_filters = num_filters   
+        self.kernel_size = kernel_size   
         self.lr = lr
         self.epochs = epochs
         self.batch_size = batch_size
         self.dropout = dropout
-        self.patience = patience          # early stopping patience in epochs
+        self.patience = patience          
 
     def fit(self, X, y):
         # numpy safety: accepts both DataFrames and numpy arrays
@@ -119,20 +117,19 @@ class CNNClassifier(BaseEstimator, ClassifierMixin):
         patience_counter = 0
 
         for epoch in range(self.epochs):
-            self.model_.train()   # enables dropout and batchnorm training behavior
+            self.model_.train()   
             epoch_loss = 0
 
             for X_batch, y_batch in loader:
-                optimizer.zero_grad()            # clear gradients from previous step
-                outputs = self.model_(X_batch)   # forward pass
-                loss = criterion(outputs, y_batch)  # compute cross-entropy loss
-                loss.backward()                  # backpropagation — compute gradients
-                optimizer.step()                 # update weights
+                optimizer.zero_grad()            
+                outputs = self.model_(X_batch) 
+                loss = criterion(outputs, y_batch)  
+                loss.backward()                
+                optimizer.step()                 # u
                 epoch_loss += loss.item()
 
             avg_loss = epoch_loss / len(loader)
 
-            # early stopping: save best weights, stop if no improvement
             if avg_loss < best_loss:
                 best_loss = avg_loss
                 patience_counter = 0
@@ -141,9 +138,8 @@ class CNNClassifier(BaseEstimator, ClassifierMixin):
             else:
                 patience_counter += 1
                 if patience_counter >= self.patience:
-                    break   # no improvement for `patience` epochs → stop training
+                    break   # no improvement 
 
-        # restore the best weights (not necessarily the last epoch's weights)
         self.model_.load_state_dict(self.best_state_)
         return self
 
